@@ -114,3 +114,5 @@ void app_main(void)
         blink_led(5, 100); // Blink 5 times to indicate failure
     }
 }
+
+// improvements: Check if IMU is connected before loading bias values and calibrating. (TO BE ADDED in future)

@@ -9,3 +9,18 @@ code structure to be written in main app:
 // 5. If bias successfully applied → blink 3 times (success)
 //    If failure → blink 5 times (failure)
 // 6. Print all biases using printf for debugging
+
+code structure for imu_sampler
+
+├── imu_sampler.c      ← sampling task, bias correction, data storage
+├── imu_sampler.h      ← header with config, structs, prototypes
+├── imu_bias.h         ← externs for accel/gyro bias values
+
+1. Creating imu_sampler.h and it contains
+- Structs for storing samples
+
+- Buffer definitions
+
+- Function prototypes
+
+2. Adding bias.h
