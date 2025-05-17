@@ -1,0 +1,24 @@
+# ESP-IDF build system
+build/
+sdkconfig
+sdkconfig.old
+*.bin
+*.elf
+*.map
+
+# NVS Partition CSV (if exported)
+*.csv
+
+# IDE / Editor-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python virtualenv (if used)
+venv/
+__pycache__/
+
+# Logs, Dumps, and Temporary Files
+*.log
+*.tmp
