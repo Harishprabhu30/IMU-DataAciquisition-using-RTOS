@@ -23,4 +23,12 @@ code structure for imu_sampler
 
 - Function prototypes
 
-2. Adding bias.h
+2. Adding bias.h : loads the calibrated values
+3. Add imu_sampler.c and it does:
+- Reads IMU
+
+- Applies bias correction
+
+- Stores to buffer
+
+- Optionally prints for debugging

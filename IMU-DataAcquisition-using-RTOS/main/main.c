@@ -5,6 +5,10 @@
 #include <freertos/task.h>
 #include <driver/gpio.h>
 
+#include <imu_sampler.h>
+#include <imu_bias.h>
+#include <mpu6050.h>
+
 // constants
 #define LED_GPIO 10
 #define NUM_AXIS 3
@@ -14,12 +18,12 @@ const char* accel_keys[NUM_AXIS] = {"accel_x", "accel_y", "accel_z"};
 const char* gyro_keys[NUM_AXIS] = {"gyro_x", "gyro_y", "gyro_z"};
 
 // Default Bias Values for each axis {pre calculated bias values}
-float accel_bias_deafults[NUM_AXIS] = {0.020, 0.026, 1.031};
-float gyro_bias_defaults[NUM_AXIS] = {2.015, 2.952, 0.256};
+float accel_bias_deafults[NUM_AXIS] = {0.029, 0.054, 1.087}; //{0.020, 0.026, 1.031}
+float gyro_bias_defaults[NUM_AXIS] = {2.785, 3.506, 1.164}; // {1.979, 2.956, 0.511}
 
 // these will hold loaded values
-float accel_bias[NUM_AXIS];
-float gyro_bias[NUM_AXIS];
+//float accel_bias[NUM_AXIS];
+//float gyro_bias[NUM_AXIS];
 
 void blink_led(int times, int delay_ms) {
     for (int i = 0; i < times; i++) {
@@ -48,7 +52,7 @@ esp_err_t load_or_store_bias()
         err = nvs_get_blob(nvs_handle, accel_keys[i], &accel_bias[i], &length);
         if (err != ESP_OK) {
             accel_bias[i] = accel_bias_deafults[i]; // Use default value
-            nvs_get_blob(nvs_handle, accel_keys[i], &accel_bias[i], &length);
+            nvs_set_blob(nvs_handle, accel_keys[i], &accel_bias[i], length); // Sets the default value
             any_missing = true; // Marks if a value is missing in NVS
         }
     }
@@ -59,7 +63,7 @@ esp_err_t load_or_store_bias()
         err = nvs_get_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], &length);
         if (err != ESP_OK) {
             gyro_bias[i] = gyro_bias_defaults[i]; // Use default value
-            nvs_get_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], &length);
+            nvs_set_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], length); // Sets the default value
             any_missing = true; // Mark that a value was missing
         }
     }
@@ -113,6 +117,16 @@ void app_main(void)
         printf("Error loading bias values: %s\n", esp_err_to_name(err));
         blink_led(5, 100); // Blink 5 times to indicate failure
     }
+
+        // MPU6050 Initialization
+    if (mpu6050_init() != ESP_OK) {
+        printf("MPU6050 initialization failed\n");
+        blink_led(5, 100);
+        return;
+    }
+
+    // Start IMU sampling
+    imu_sampler_start(); // Start the IMU sampling task: 30 seconds at 100Hz
 }
 
 // improvements: Check if IMU is connected before loading bias values and calibrating. (TO BE ADDED in future)
