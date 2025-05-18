@@ -3,130 +3,132 @@
 #include <nvs.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/event_groups.h>
 #include <driver/gpio.h>
+#include "imu_sampler.h"
+#include "imu_bias.h"
+#include "mpu6050.h"
+#include "uart_task.h"
 
-#include <imu_sampler.h>
-#include <imu_bias.h>
-#include <mpu6050.h>
-
-// constants
 #define LED_GPIO 10
 #define NUM_AXIS 3
 
-// Bias keys for each axis 
+// Event group for manual trigger
+EventGroupHandle_t sampling_event_group;
+#define START_SAMPLING_BIT (1 << 0)
+
 const char* accel_keys[NUM_AXIS] = {"accel_x", "accel_y", "accel_z"};
 const char* gyro_keys[NUM_AXIS] = {"gyro_x", "gyro_y", "gyro_z"};
-
-// Default Bias Values for each axis {pre calculated bias values}
-float accel_bias_deafults[NUM_AXIS] = {0.029, 0.054, 1.087}; //{0.020, 0.026, 1.031}
-float gyro_bias_defaults[NUM_AXIS] = {2.785, 3.506, 1.164}; // {1.979, 2.956, 0.511}
-
-// these will hold loaded values
-//float accel_bias[NUM_AXIS];
-//float gyro_bias[NUM_AXIS];
+float accel_bias_defaults[NUM_AXIS] = {0.029, 0.054, 1.087};
+float gyro_bias_defaults[NUM_AXIS] = {2.785, 3.506, 1.164};
 
 void blink_led(int times, int delay_ms) {
     for (int i = 0; i < times; i++) {
-        gpio_set_level(LED_GPIO, 1); // Turn on the LED
-        vTaskDelay(pdMS_TO_TICKS(delay_ms)); // Delay for the specified time
-        gpio_set_level(LED_GPIO, 0); // Turn off the LED
-        vTaskDelay(pdMS_TO_TICKS(delay_ms)); // Delay for the specified time
+        gpio_set_level(LED_GPIO, 1);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        gpio_set_level(LED_GPIO, 0);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
     }
 }
 
-// Function to load or store bias values
-esp_err_t load_or_store_bias()
-{
+esp_err_t load_or_store_bias() {
     nvs_handle_t nvs_handle;
     esp_err_t err;
 
-    // Open NVS
     err = nvs_open("imu_storage", NVS_READWRITE, &nvs_handle);
     if (err != ESP_OK) return err;
 
-    bool any_missing = false; // Flag to check if any bias value is missing
+    bool any_missing = false;
 
-    // Load or store each accelerometer bias
     for (int i = 0; i < NUM_AXIS; i++) {
         size_t length = sizeof(float);
         err = nvs_get_blob(nvs_handle, accel_keys[i], &accel_bias[i], &length);
         if (err != ESP_OK) {
-            accel_bias[i] = accel_bias_deafults[i]; // Use default value
-            nvs_set_blob(nvs_handle, accel_keys[i], &accel_bias[i], length); // Sets the default value
-            any_missing = true; // Marks if a value is missing in NVS
+            accel_bias[i] = accel_bias_defaults[i];
+            nvs_set_blob(nvs_handle, accel_keys[i], &accel_bias[i], length);
+            any_missing = true;
         }
     }
 
-    // Load or store each gyroscope bias
     for (int i = 0; i < NUM_AXIS; i++) {
         size_t length = sizeof(float);
         err = nvs_get_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], &length);
         if (err != ESP_OK) {
-            gyro_bias[i] = gyro_bias_defaults[i]; // Use default value
-            nvs_set_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], length); // Sets the default value
-            any_missing = true; // Mark that a value was missing
+            gyro_bias[i] = gyro_bias_defaults[i];
+            nvs_set_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], length);
+            any_missing = true;
         }
     }
 
-    // If any value was missing,
     if (any_missing) {
-        err = nvs_commit(nvs_handle); // Commit changes
+        err = nvs_commit(nvs_handle);
         if (err != ESP_OK) {
             nvs_close(nvs_handle);
-            return err; // Return error if commit fails
+            return err;
         }
     }
 
-    // Close NVS
     nvs_close(nvs_handle);
-    return ESP_OK; // Return success
+    return ESP_OK;
 }
 
-void app_main(void)
-{
+void app_main(void) {
     // Configure LED
-    gpio_reset_pin(LED_GPIO); // Reset the GPIO pin
-    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT); // Set the GPIO pin as output
-
-    // blink 3 times to indicate start
+    gpio_reset_pin(LED_GPIO);
+    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
     blink_led(3, 200);
 
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     if (err != ESP_OK) {
-        printf("Failed to initialize NVS\n");
-        blink_led(5, 100); // Blink 5 times to indicate failure
+        printf("Failed to initialize NVS: %s\n", esp_err_to_name(err));
+        blink_led(5, 100);
         return;
     }
-    
-    // Load and store calibration values
-    err = load_or_store_bias(); // call the function to load or store bias values
 
+    // Load bias values
+    err = load_or_store_bias();
     if (err == ESP_OK) {
-        // Sucess
         printf("Bias values loaded successfully:\n");
-        printf("IMU BIAS VALUES:\n");
         printf("Accel Bias: X=%.3f, Y=%.3f, Z=%.3f\n",
                accel_bias[0], accel_bias[1], accel_bias[2]);
         printf("Gyro  Bias: X=%.3f, Y=%.3f, Z=%.3f\n",
                gyro_bias[0], gyro_bias[1], gyro_bias[2]);
-
-        // Blink 3 times to indicate success
         blink_led(3, 200);
     } else {
         printf("Error loading bias values: %s\n", esp_err_to_name(err));
-        blink_led(5, 100); // Blink 5 times to indicate failure
+        blink_led(5, 100);
+        return;
     }
 
-        // MPU6050 Initialization
+    // Initialize MPU6050
     if (mpu6050_init() != ESP_OK) {
         printf("MPU6050 initialization failed\n");
         blink_led(5, 100);
         return;
     }
 
-    // Start IMU sampling
-    imu_sampler_start(); // Start the IMU sampling task: 30 seconds at 100Hz
-}
+    // Create event group for sampling trigger
+    sampling_event_group = xEventGroupCreate();
 
-// improvements: Check if IMU is connected before loading bias values and calibrating. (TO BE ADDED in future)
+    // Start UART task
+    uart_task_start();
+
+    // Sampling loop
+    while (1) {
+        printf("\nReady for sampling session. Send 'START' via UART or wait 10 seconds.\n");
+        // Wait for START command or timeout (10 seconds)
+        EventBits_t bits = xEventGroupWaitBits(sampling_event_group, START_SAMPLING_BIT, pdTRUE, pdFALSE, pdMS_TO_TICKS(10000));
+        if (bits & START_SAMPLING_BIT) {
+            printf("Received START command\n");
+        } else {
+            printf("Timeout, starting sampling\n");
+        }
+
+        printf("Starting sampling session\n");
+        imu_sampler_start();
+        vTaskDelay(pdMS_TO_TICKS(SAMPLE_DURATION_SEC * 1000 + 1000)); // Wait for sampling (30s + 1s)
+        printf("Sampling done\n");
+        imu_clear_samples(); // Clear buffer
+    }
+}

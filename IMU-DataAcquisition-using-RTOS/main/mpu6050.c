@@ -10,6 +10,7 @@
 #define MPU6050_ADDR 0x68
 #define MPU6050_REG_PWR_MGMT_1 0x6B
 #define MPU6050_REG_ACCEL_CONFIG 0x1C
+#define MPU6050_REG_GYRO_CONFIG 0x1B
 #define MPU6050_REG_ACCEL_XOUT_H 0x3B
 
 static const char *TAG = "MPU6050";
@@ -25,13 +26,6 @@ esp_err_t mpu6050_init(void) {
     };
     ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
     ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0));
-
-    // OPTIONAL: Reset device (uncomment if needed)
-    /*
-    uint8_t reset_cmd[2] = {MPU6050_REG_PWR_MGMT_1, 0x80};
-    i2c_master_write_to_device(I2C_MASTER_NUM, MPU6050_ADDR, reset_cmd, 2, 1000 / portTICK_PERIOD_MS);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    */
 
     // Wake up sensor
     uint8_t wake_cmd[2] = {MPU6050_REG_PWR_MGMT_1, 0x00};
@@ -49,6 +43,14 @@ esp_err_t mpu6050_init(void) {
         return ret;
     }
 
+    // Set gyroscope to ±250 deg/s
+    uint8_t gyro_config[2] = {MPU6050_REG_GYRO_CONFIG, 0x00};
+    ret = i2c_master_write_to_device(I2C_MASTER_NUM, MPU6050_ADDR, gyro_config, 2, 1000 / portTICK_PERIOD_MS);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Gyro config failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
     ESP_LOGI(TAG, "MPU6050 initialized successfully");
     return ESP_OK;
 }
@@ -63,8 +65,6 @@ esp_err_t mpu6050_read_raw(mpu6050_raw_data_t *data) {
         return ret;
     }
 
-    //ESP_LOG_BUFFER_HEX_LEVEL("MPU6050_RAW", buffer, 14, ESP_LOG_INFO);
-
     int16_t ax = (buffer[0] << 8) | buffer[1];
     int16_t ay = (buffer[2] << 8) | buffer[3];
     int16_t az = (buffer[4] << 8) | buffer[5];
@@ -72,12 +72,10 @@ esp_err_t mpu6050_read_raw(mpu6050_raw_data_t *data) {
     int16_t gy = (buffer[10] << 8) | buffer[11];
     int16_t gz = (buffer[12] << 8) | buffer[13];
 
-    //ESP_LOGI(TAG, "RAW AX: %d AY: %d AZ: %d | GX: %d GY: %d GZ: %d", ax, ay, az, gx, gy, gz);
-
-    data->accel_x = ax / 16384.0f;
+    data->accel_x = ax / 16384.0f; // ±2g range
     data->accel_y = ay / 16384.0f;
     data->accel_z = az / 16384.0f;
-    data->gyro_x = gx / 131.0f;
+    data->gyro_x = gx / 131.0f; // ±250 deg/s range
     data->gyro_y = gy / 131.0f;
     data->gyro_z = gz / 131.0f;
 

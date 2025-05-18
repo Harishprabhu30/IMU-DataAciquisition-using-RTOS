@@ -32,3 +32,13 @@ code structure for imu_sampler
 - Stores to buffer
 
 - Optionally prints for debugging
+
+# ADded wifi task (but not using for this project for now)
+
+To be added in main.c
+#include "wifi_task.h"
+
+void app_main(void) {
+    wifi_task_init();  // Blocks until connected
+    // Now safe to start HTTP or other tasks that require internet
+}
