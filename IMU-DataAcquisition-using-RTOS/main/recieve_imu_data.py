@@ -1,18 +1,23 @@
 import serial
 import struct
 import numpy as np
+import time
 
 # Serial port configuration
 port = '/dev/tty.usbmodem14201'  # Adjust to your port (use ls /dev/cu.*)
 ser = serial.Serial(port, 115200, timeout=1)
 
-# Data storage (list for STAIRUP_1, extensible for other labels)
-imu_data_stairup_1 = []  # List for STAIRUP_1 samples
+# Data storage
+imu_data_stairup_1 = []
+
+# Send START command (optional)
+print("Sending START command...")
+ser.write(b'START\n')
+time.sleep(0.1)  # Wait for ESP32 to process command
 
 print("Listening for IMU data (label: STAIRUP_1)...")
 try:
     while True:
-        # Read imu_sample_t (6 floats + 1 int64_t = 32 bytes)
         sample_bytes = ser.read(32)
         if len(sample_bytes) == 32:
             ax, ay, az, gx, gy, gz, timestamp = struct.unpack('<ffffffq', sample_bytes)
@@ -28,7 +33,3 @@ imu_array_stairup_1 = np.array([(d[0], d[1], d[2], d[3], d[4], d[5], d[6], 'STAI
                               dtype=[('ax', float), ('ay', float), ('az', float), ('gx', float), ('gy', float), ('gz', float), ('timestamp', np.int64), ('label', 'U32')])
 print("Data stored in imu_array_stairup_1 (NumPy):")
 print(imu_array_stairup_1)
-
-# Optional: Extend for other labels
-# imu_data_stairdown_1 = []
-# Run the script again with a different label assignment

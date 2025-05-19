@@ -1,20 +1,26 @@
-#pragma once
+#ifndef IMU_SAMPLER_H
+#define IMU_SAMPLER_H
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <stdint.h>
+#include "esp_err.h"
 
-// Constants
-#define SAMPLE_RATE 100 // in Hz
-#define SAMPLE_DURATION_SEC 30 // in seconds
-#define MAX_SAMPLES (SAMPLE_RATE * SAMPLE_DURATION_SEC) // 3000 samples
+#define MAX_SAMPLES 3000
+#define SAMPLE_RATE 100
 
 typedef struct {
-    float ax, ay, az; // accelerometer data (in g)
-    float gx, gy, gz; // gyroscope data (in deg/s)
-    int64_t timestamp_us; // timestamp in microseconds
+    float ax;
+    float ay;
+    float az;
+    float gx;
+    float gy;
+    float gz;
+    int64_t timestamp_us;
 } imu_sample_t;
 
-void imu_sampler_start(void); // Start IMU sampling
-const imu_sample_t* imu_get_sample_buffer(void); // Get sample buffer pointer
-int imu_get_sample_count(void); // Get sample count
-void imu_clear_samples(void); // Clear sample buffer
+const imu_sample_t* imu_get_sample_buffer(void);
+int imu_get_sample_count(void);
+void imu_clear_samples(void);
+void imu_sampler_start(void);
+void imu_transfer_start(void);
+
+#endif
