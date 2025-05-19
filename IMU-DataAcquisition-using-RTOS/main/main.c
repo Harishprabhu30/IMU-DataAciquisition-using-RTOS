@@ -36,6 +36,7 @@ esp_err_t load_or_store_bias() {
         size_t length = sizeof(float);
         err = nvs_get_blob(nvs_handle, accel_keys[i], &accel_bias[i], &length);
         if (err != ESP_OK) {
+            //ESP_OK("Loaded default Accel bias values");
             accel_bias[i] = accel_bias_defaults[i];
             nvs_set_blob(nvs_handle, accel_keys[i], &accel_bias[i], length);
             any_missing = true;
@@ -46,6 +47,7 @@ esp_err_t load_or_store_bias() {
         size_t length = sizeof(float);
         err = nvs_get_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], &length);
         if (err != ESP_OK) {
+            //ESP_OK("Loaded default Gyro bias values");
             gyro_bias[i] = gyro_bias_defaults[i];
             nvs_set_blob(nvs_handle, gyro_keys[i], &gyro_bias[i], length);
             any_missing = true;
@@ -73,7 +75,7 @@ void app_main(void) {
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     if (err != ESP_OK) {
-        blink_led(5, 100);
+        blink_led(5, 100); // for failure
         return;
     }
 

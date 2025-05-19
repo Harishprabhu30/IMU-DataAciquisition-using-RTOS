@@ -4,11 +4,11 @@ import numpy as np
 import time
 
 # ============== USER-CONFIGURABLE PARAMETERS ==============
-SERIAL_PORT = '/dev/tty.usbmodem14201'  # Change to your actual port
+SERIAL_PORT = '/dev/tty.usbmodem14101'  # Change to your actual port
 BAUD_RATE = 115200
 SAMPLES_TO_COLLECT = 3000               # Match with MAX_SAMPLES in firmware
 EXPECTED_SAMPLING_RATE = 100            # Hz — match with firmware
-LABEL = 'STAIRUP_1'                     # Activity label
+LABEL = 'walk_run_1'                     # Activity label
 # ===========================================================
 
 samples = []
@@ -58,17 +58,23 @@ imu_array = np.array([(d[0], d[1], d[2], d[3], d[4], d[5], d[6], LABEL) for d in
 print(f"\nData stored in imu_array (NumPy) with {len(imu_array)} samples.")
 print(imu_array)
 
+# Save to csv and npy
+np.savetxt(f'{LABEL.lower()}.csv', imu_array, delimiter=',', fmt='%s',
+           header='ax,ay,az,gx,gy,gz,timestamp,label', comments='')
+
+np.save(f'{LABEL.lower()}.npy', imu_array)
+
 # Estimate actual sampling rate
 timestamps = imu_array['timestamp'] / 1_000_000.0  # Convert µs to seconds
 time_diffs = np.diff(timestamps)
-actual_sampling_rate = 1.0 / np.mean(time_diffs) if len(time_diffs) > 0 else EXPECTED_SAMPLING_RATE
+actual_sampling_rate = 1.0 / np.mean(time_diffs) #if len(time_diffs) > 0 else EXPECTED_SAMPLING_RATE
 print(f"Estimated Sampling Rate: {actual_sampling_rate:.2f} Hz")
 
 # Time vector (relative)
 relative_time = timestamps - timestamps[0]
 
 # ================== TIME DOMAIN PLOT ==================
-plt.figure(figsize=(12, 5))
+plt.figure(figsize=(15, 8))
 
 # Accelerometer
 plt.subplot(2, 1, 1)
